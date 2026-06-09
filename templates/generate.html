@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate {{ style.name }}{% endblock %}
+
+{% block content %}
+<!-- Background with blur overlay -->
+<section class="relative min-h-screen flex flex-col justify-center py-4 px-4">
+    <img src="{{ style.img_path }}" alt="{{ style.name }} background"
+         class="absolute inset-0 w-full h-full object-cover opacity-40 blur-sm">
+    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent"></div>
+
+    <div class="relative z-10 max-w-8xl mx-auto w-full">
+        <!-- Header -->
+        <header class="text-center mb-6 animate-fadeIn">
+            <h1 class="text-3xl md:text-5xl font-bold mb-2">
+                Generate: <span class="text-accent-cyan">{{ style.name }}</span>
+            </h1>
+            <p class="text-base md:text-lg text-gray-300 max-w-2xl mx-auto">
+                Upload your photo and transform it with our AI into a stunning <span class="text-accent-purple">{{ style.name }}</span> anime style.
+            </p>
+        </header>
+
+        <!-- Main Content - Full screen square boxes -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-fadeInSlow h-[80vh]">
+            
+            <!-- Upload Panel - Square box -->
+            <div class="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 hover:shadow-accent-purple/30 transition-all duration-300 flex flex-col h-full">
+                <div class="p-6">
+                    <h2 class="text-xl font-semibold mb-4 text-center text-white">Upload Your Photo</h2>
+                </div>
+                
+                <div class="flex-1 flex items-center justify-center p-6">
+                    <form method="post" enctype="multipart/form-data" class="space-y-6 w-full max-w-md">
+                        {% csrf_token %}
+                        
+                        <div>
+                            <label for="user_image" class="block text-sm font-medium text-gray-300 mb-2">Select an image (PNG or JPEG):</label>
+                            <input type="file" name="user_image" id="user_image" accept="image/png, image/jpeg" required
+                                   class="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4
+                                          file:rounded-lg file:border-0 file:text-sm file:font-semibold
+                                          file:bg-accent-cyan file:text-dark hover:file:bg-accent-purple transition-all cursor-pointer">
+                        </div>
+                        
+                        <button type="submit" id="generate-button"
+                                class="w-full bg-gradient-to-r from-accent-cyan to-accent-purple hover:from-accent-purple hover:to-accent-cyan
+                                       text-dark font-extrabold py-3 px-6 rounded-xl text-lg shadow-lg hover:shadow-accent-purple/50 transition-all duration-300">
+                            Generate Image
+                        </button>
+                    </form>
+                </div>
+
+                {% if error_message %}
+                    <div class="p-6 pt-0">
+                        <div class="bg-red-900/80 border border-red-700 text-red-100 px-4 py-3 rounded-lg shadow-lg" role="alert">
+                            <p class="font-bold">Error</p>
+                            <p>{{ error_message }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Output Panel - Square box -->
+            <div class="bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 flex flex-col h-full hover:shadow-accent-cyan/30 transition-all duration-300">
+                {% if generated_image_data %}
+                    <div class="p-6">
+                        <h2 class="text-xl font-semibold mb-4 text-white text-center">Your Anime-fied Photo!</h2>
+                    </div>
+                    
+                    <div class="flex-1 flex flex-col items-center justify-center p-4">
+                        <div id="output-image-container" class="text-center w-full h-full flex flex-col">
+                            <div class="flex justify-center items-center flex-1">
+                                <img id="output-image" src="{{ generated_image_data }}" alt="Generated anime-style photo"
+                                     class="max-h-full max-w-full object-contain rounded-2xl shadow-2xl hover:scale-[1.02] transition-transform duration-300">
+                            </div>
+                            
+                            <div class="flex flex-wrap justify-center gap-3 mt-4">
+                                <a href="{{ generated_image_data }}" download
+                                   class="inline-block bg-accent-cyan text-dark font-semibold py-2 px-6 rounded-lg hover:bg-accent-purple hover:text-white transition-all duration-300">
+                                    Download Image
+                                </a>
+                                <button id="create-gif-btn" 
+                                        class="inline-block bg-accent-purple text-white font-semibold py-2 px-6 rounded-lg hover:bg-accent-cyan transition-all duration-300">
+                                    Create Animated GIF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="flex-1 flex items-center justify-center p-6">
+                        <div id="output-placeholder" class="text-center text-gray-400">
+                            <p class="text-lg">Your generated image will appear here.</p>
+                            <p class="text-sm mt-2">(The page will reload after you click 'Generate')</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- GIF Creation Modal -->
+<div id="gif-modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="relative min-h-screen flex items-center justify-center p-2">
+        <div class="bg-dark-secondary rounded-2xl shadow-2xl border border-dark-tertiary w-full h-[95vh] max-w-6xl">
+            <div class="p-4 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-white">Create Animated GIF</h2>
+                    <button id="close-gif-modal" class="text-gray-400 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
+                    <!-- Preview Panel -->
+                    <div class="flex flex-col h-full">
+                        <h3 class="text-xl font-semibold mb-3 text-white">Preview</h3>
+                        <div class="bg-black/30 rounded-xl flex items-center justify-center flex-1 min-h-[300px] p-4">
+                            <img id="gif-preview-image" src="" alt="GIF Preview" 
+                                 class="max-h-full max-w-full object-contain rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Controls Panel -->
+                    <div class="flex flex-col h-full">
+                        <h3 class="text-xl font-semibold mb-3 text-white">Animation Settings</h3>
+                        
+                        <div class="space-y-5 flex-1 flex flex-col">
+                            <div>
+                                <label class="block text-gray-300 mb-2 text-lg">Animation Type</label>
+                                <select id="animation-type" class="w-full bg-dark-tertiary text-white p-3 rounded-lg text-lg">
+                                    <option value="face-move">Face Movement</option>
+                                    <option value="blink">Blinking Eyes</option>
+                                    <option value="cry">Crying</option>
+                                    <option value="talk">Talking</option>
+                                    <option value="wink">Winking</option>
+                                    <option value="wave">Waving</option>
+                                    <option value="bounce">Bouncing</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-300 mb-2 text-lg">Speed</label>
+                                <select id="animation-speed" class="w-full bg-dark-tertiary text-white p-3 rounded-lg text-lg">
+                                    <option value="slow">Slow</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="fast">Fast</option>
+                                </select>
+                            </div>
+                            
+                            <button id="generate-gif-btn" 
+                                    class="w-full bg-gradient-to-r from-accent-cyan to-accent-purple hover:from-accent-purple hover:to-accent-cyan
+                                           text-dark font-extrabold py-4 px-6 rounded-xl text-xl shadow-lg hover:shadow-accent-purple/50 transition-all duration-300">
+                                Generate GIF
+                            </button>
+                            
+                            <!-- Loading indicator for GIF generation -->
+                            <div id="gif-loading" class="hidden flex-1 flex items-center justify-center">
+                                <div class="flex flex-col items-center bg-dark/50 p-8 rounded-xl">
+                                    <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-accent-cyan"></div>
+                                    <p class="mt-6 text-gray-300 text-xl">Creating your animated GIF...</p>
+                                </div>
+                            </div>
+                            
+                            <!-- GIF Result -->
+                            <div id="gif-result" class="hidden flex-1 flex flex-col">
+                                <div class="bg-dark/50 p-4 rounded-xl flex-1 flex flex-col">
+                                    <h4 class="text-xl font-semibold mb-3 text-white">Your Animated GIF</h4>
+                                    <div class="flex justify-center flex-1 items-center">
+                                        <img id="generated-gif" alt="Generated GIF" class="max-h-full max-w-full object-contain rounded-lg shadow-lg">
+                                    </div>
+                                    <a id="download-gif-btn" 
+                                       class="mt-4 w-full inline-block bg-accent-cyan text-dark font-extrabold py-3 px-6 rounded-lg hover:bg-accent-purple hover:text-white transition-all duration-300 text-center text-lg">
+                                        Download GIF
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <!-- Error message for GIF generation -->
+                            <div id="gif-error" class="hidden flex-1 flex items-center justify-center">
+                                <div class="bg-red-900/80 border border-red-700 text-red-100 px-6 py-4 rounded-lg shadow-lg max-w-md">
+                                    <p class="font-bold text-xl">Error</p>
+                                    <p id="gif-error-message" class="text-lg">Failed to create GIF. Please try again.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Animations -->
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn { animation: fadeIn 0.8s ease-out both; }
+.animate-fadeInSlow { animation: fadeIn 1.2s ease-out both; }
+
+/* Spinner animation */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Full width utility class */
+.max-w-8xl {
+  max-width: 90rem;
+}
+
+/* Modal animations */
+.modal-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+.modal-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+.modal-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+.modal-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 300ms, transform 300ms;
+}
+</style>
+
+<!-- Add JavaScript for GIF functionality -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createGifBtn = document.getElementById('create-gif-btn');
+    const gifModal = document.getElementById('gif-modal');
+    const closeGifModal = document.getElementById('close-gif-modal');
+    const gifPreviewImage = document.getElementById('gif-preview-image');
+    const generateGifBtn = document.getElementById('generate-gif-btn');
+    const gifResult = document.getElementById('gif-result');
+    const generatedGif = document.getElementById('generated-gif');
+    const downloadGifBtn = document.getElementById('download-gif-btn');
+    const outputImage = document.getElementById('output-image');
+    const gifLoading = document.getElementById('gif-loading');
+    const gifError = document.getElementById('gif-error');
+    const gifErrorMessage = document.getElementById('gif-error-message');
+
+    if (createGifBtn && gifModal) {
+        createGifBtn.addEventListener('click', function() {
+            // Set the preview image
+            if (outputImage) {
+                gifPreviewImage.src = outputImage.src;
+            }
+            
+            // Show the modal
+            gifModal.classList.remove('hidden');
+            gifModal.classList.add('block');
+        });
+    }
+
+    if (closeGifModal && gifModal) {
+        closeGifModal.addEventListener('click', function() {
+            gifModal.classList.add('hidden');
+            gifModal.classList.remove('block');
+            
+            // Reset modal content
+            gifResult.classList.add('hidden');
+            gifError.classList.add('hidden');
+            gifLoading.classList.add('hidden');
+        });
+    }
+
+    // Close modal when clicking outside
+    if (gifModal) {
+        gifModal.addEventListener('click', function(event) {
+            if (event.target === gifModal) {
+                gifModal.classList.add('hidden');
+                gifModal.classList.remove('block');
+                
+                // Reset modal content
+                gifResult.classList.add('hidden');
+                gifError.classList.add('hidden');
+                gifLoading.classList.add('hidden');
+            }
+        });
+    }
+
+    if (generateGifBtn) {
+        generateGifBtn.addEventListener('click', function() {
+            const animationType = document.getElementById('animation-type').value;
+            const animationSpeed = document.getElementById('animation-speed').value;
+            
+            // Hide previous results and show loading
+            gifResult.classList.add('hidden');
+            gifError.classList.add('hidden');
+            gifLoading.classList.remove('hidden');
+            
+            // Show loading state
+            generateGifBtn.innerHTML = 'Generating...';
+            generateGifBtn.disabled = true;
+            
+            // Get the image data
+            const imageData = gifPreviewImage.src;
+            
+            // Send AJAX request to backend
+            fetch('{% url "create_gif" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    image_data: imageData,
+                    animation_type: animationType,
+                    speed: animationSpeed
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading
+                gifLoading.classList.add('hidden');
+                
+                if (data.success) {
+                    // Show the generated GIF
+                    generatedGif.src = data.gif_data;
+                    gifResult.classList.remove('hidden');
+                    gifResult.classList.add('block');
+                    
+                    // Set up download link
+                    downloadGifBtn.href = data.gif_data;
+                    downloadGifBtn.download = 'animated-' + Date.now() + '.gif';
+                } else {
+                    // Show error message
+                    gifErrorMessage.textContent = data.error || 'Failed to create GIF. Please try again.';
+                    gifError.classList.remove('hidden');
+                    gifError.classList.add('block');
+                }
+                
+                // Reset button
+                generateGifBtn.innerHTML = 'Generate GIF';
+                generateGifBtn.disabled = false;
+            })
+            .catch(error => {
+                // Hide loading
+                gifLoading.classList.add('hidden');
+                
+                // Show error message
+                gifErrorMessage.textContent = 'Network error. Please try again.';
+                gifError.classList.remove('hidden');
+                gifError.classList.add('block');
+                
+                // Reset button
+                generateGifBtn.innerHTML = 'Generate GIF';
+                generateGifBtn.disabled = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AnimeFly{% endblock %}</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        'accent-purple': '#a855f7', // purple-500
+                        'accent-cyan': '#06b6d4',   // cyan-500
+                        'dark-primary': '#020617', // slate-950 (deeper background)
+                        'dark-secondary': '#0f172a', // slate-900 (card background)
+                        'dark-tertiary': '#1e293b', // slate-800 (borders)
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #020617; /* dark-primary */
+        }
+        
+        /* New locked card style to match the theme */
+        .locked-card {
+            position: relative;
+        }
+        .locked-card img {
+            filter: grayscale(100%) brightness(0.6);
+        }
+        .locked-overlay {
+            position: absolute;
+            inset: 0;
+            /* Glassmorphism effect */
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            flex-direction: column;
+            color: white;
+            font-weight: 600;
+            border-radius: 0.5rem; /* rounded-lg */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        /* Show overlay on hover when card is locked */
+        .locked-card:hover .locked-overlay {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen">
+
+    <nav class="sticky top-0 z-50 bg-dark-secondary/80 backdrop-blur-lg border-b border-dark-tertiary/50 shadow-lg">
+        <div class="container mx-auto max-w-6xl px-4 py-4 flex justify-between items-center">
+            <a href="{% url 'home' %}" class="text-2xl font-bold">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-accent-purple">
+                    AnimeFly
+                </span>
+            </a>
+            <div class="flex items-center space-x-4">
+                {% if user.is_authenticated %}
+                    <span class="text-gray-300 hidden sm:block">Welcome, {{ user.username }}!</span>
+                    <form action="{% url 'logout' %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                            Logout
+                        </button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                        Login
+                    </a>
+                    <a href="{% url 'signup' %}" class="bg-gradient-to-r from-accent-cyan to-accent-purple hover:opacity-90 text-white font-semibold py-2 px-4 rounded-lg transition duration-300">
+                        Sign Up
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto max-w-6xl p-4 md:p-8">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="text-gray-400 mt-20 border-t border-dark-tertiary/50">
+        <div class="container mx-auto max-w-6xl p-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-4 md:mb-0">
+                <a href="{% url 'home' %}" class="text-xl font-bold">
+                    <span class="bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-accent-purple">
+                        AnimeFly
+                    </span>
+                </a>
+                <p class="text-sm mt-1">&copy; 2025. All rights reserved.</p>
+            </div>
+            <div class="flex space-x-6">
+                <a href="#" class="hover:text-accent-cyan transition-colors">Privacy</a>
+                <a href="#" class="hover:text-accent-cyan transition-colors">Terms</a>
+                <a href="#" class="hover:text-accent-cyan transition-colors">Contact</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
